@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mysql
+  namespace: name1
+  labels:
+    app: mysql
+spec:
+  containers:
+  - name: bd
+    image: jlopezv31/demo-mysql:1.0.0
+    env:
+    - name: MYSQL_ROOT_PASSWORD
+      value: toor
+    - name: MYSQL_ROOT_HOST
+      value: "%"
+    ports:
+    - containerPort:  3306
+  restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  namespace: name1
+spec:
+  selector:
+    app: mysql
+  type: ClusterIP
+  ports:
+  - port: 3306
+###Creacion de aplicacion
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: configmap-application
+  namespace: name1
+data:
+  host: mysql-service.name1.svc.cluster.local
+  port: "3306"
+  MYSQL_ROOT_PASSWORD: toor
+  MYSQL_ROOT_HOST: "%"
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: backend
+  namespace: name1
+  labels:
+    app: backend
+spec:
+  # modify replicas according to your case
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend-app
+        image: jlopezv31/api-person:1.0.0
+        ports:
+        - containerPort:  8080
+          protocol: TCP
+        env:
+          - name: host
+            valueFrom:
+              configMapKeyRef:
+                name: configmap-application
+                key: host
+          - name: port
+            valueFrom:
+              configMapKeyRef:
+                name: configmap-application
+                key: port
+          - name: MYSQL_ROOT_PASSWORD
+            valueFrom:
+              configMapKeyRef:
+                name: configmap-application
+                key: MYSQL_ROOT_PASSWORD
+          - name: MYSQL_ROOT_HOST
+            valueFrom:
+              configMapKeyRef:
+                name: configmap-application
+                key: MYSQL_ROOT_HOST                                
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-app
+  namespace: name1
+spec:
+  selector:
+    app: backend
+  type: ClusterIP
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080 # puertos que usan los pods

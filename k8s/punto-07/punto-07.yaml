@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: name2
+spec:
+  replicas: 1
+  serviceName: mysql-database
+  selector:
+    matchLabels:
+      app: mysql-name2
+  template:
+    metadata:
+      labels:
+        app: mysql-name2
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: mysql
+          image: jlopezv31/demo-mysql:1.0.0
+          ports:
+            - name: tpc
+              protocol: TCP
+              containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: toor
+            - name:  MYSQL_ROOT_HOST
+              value: "%"
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        namespace: name2
+      spec:
+        storageClassName: standard
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: headless-service
+  namespace: name2
+spec:
+  clusterIP: None
+  selector:
+    app: mysql-name2
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-app
+  namespace: name2
+type: Opaque
+data:
+  host: aGVhZGxlc3Mtc2VydmljZS5uYW1lMi5zdmMuY2x1c3Rlci5sb2NhbA==
+  port: MzMwNg==
+  MYSQL_ROOT_PASSWORD: dG9vcg==
+  MYSQL_ROOT_HOST: JQ==
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment-person
+  namespace: name2
+spec:
+  selector:
+    matchLabels:
+      app: app-name2
+      department: rrhh
+  replicas: 4
+  template:
+    metadata:
+      labels:
+        app: app-name2
+        department: rrhh
+    spec:
+      containers:
+      - name: backend-app
+        image: jlopezv31/api-person:1.0.0
+        env:
+          - name: host
+            valueFrom:
+              secretKeyRef:
+                name: secret-app
+                key: host
+          - name: port
+            valueFrom:
+              secretKeyRef:
+                name: secret-app
+                key: port
+          - name: MYSQL_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: secret-app
+                key: MYSQL_ROOT_PASSWORD
+          - name: MYSQL_ROOT_HOST
+            valueFrom:
+              secretKeyRef:
+                name: secret-app
+                key: MYSQL_ROOT_HOST
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-lb-external
+  namespace: name2
+spec:
+  type: LoadBalancer
+  selector:
+    app: app-name2
+    department: rrhh
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+    name: listener-1

@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: stack-api-person
+  annotations:
+    sample: 800-555-1212
+  labels:
+    app: api-person
+    version: v1
+spec:
+  imagePullSecrets:
+  - name: regcred
+  containers:
+   - name: api-person 
+     image: jlopezv31/api-person:1.0.0
+     ports:
+        - containerPort: 8080
+     env:
+        - name: host
+          value: localhost
+        - name: port
+          value: "3306"
+        - name: MYSQL_ROOT_PASSWORD
+          value: toor
+        - name: MYSQL_ROOT_HOST
+          value: "%"
+   - name: bd   
+     image: jlopezv31/demo-mysql:1.0.0
+     env:
+     - name: MYSQL_ROOT_PASSWORD
+       value: toor
+     - name: MYSQL_ROOT_HOST
+       value: "%"
+     ports:
+        - containerPort: 3306
+  restartPolicy: OnFailure #valores posibles -> Always, OnFailure, Never
